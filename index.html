@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Rail Fence Stego Decoder</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f7f7f7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px;
+}
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  max-width: 500px;
+}
+input, button {
+  padding: 10px;
+  margin: 5px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h2>🔍 Rail Fence Stego Decoder</h2>
+    <input type="file" id="fileInput" accept="image/png, image/jpeg"><br>
+    <input type="number" id="rails" placeholder="Enter rails (e.g., 3)">
+    <button onclick="decodeImage()">Extract & Decrypt</button>
+    <pre id="output"></pre>
+  </div>
+
+<script>
+function railFenceDecrypt(cipher, rails) {
+    let n = cipher.length;
+    let rail = Array.from({ length: rails }, () => Array(n).fill('\n'));
+    let dir_down, row = 0, col = 0;
+
+    for (let i = 0; i < n; i++) {
+        if (row == 0) dir_down = true;
+        if (row == rails - 1) dir_down = false;
+        rail[row][col++] = '*';
+        row += dir_down ? 1 : -1;
+    }
+
+    let index = 0;
+    for (let i = 0; i < rails; i++) {
+        for (let j = 0; j < n; j++) {
+            if (rail[i][j] === '*' && index < n)
+                rail[i][j] = cipher[index++];
+        }
+    }
+
+    let result = '';
+    row = 0; col = 0;
+    for (let i = 0; i < n; i++) {
+        if (row == 0) dir_down = true;
+        if (row == rails - 1) dir_down = false;
+        if (rail[row][col] !== '*')
+            result += rail[row][col];
+        col++;
+        row += dir_down ? 1 : -1;
+    }
+    return result;
+}
+
+async function decodeImage() {
+    const file = document.getElementById('fileInput').files[0];
+    const rails = parseInt(document.getElementById('rails').value);
+    if (!file || !rails) return alert("Please select image and rails!");
+
+    const img = await createImageBitmap(file);
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width; canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const data = ctx.getImageData(0, 0, img.width, img.height).data;
+
+    let binary = "";
+    for (let i = 0; i < data.length; i++) {
+        binary += (data[i] & 1).toString();
+        if (binary.slice(-16) === '1111111111111110') break;
+    }
+    binary = binary.slice(0, -16);
+
+    let text = "";
+    for (let i = 0; i < binary.length; i += 8) {
+        text += String.fromCharCode(parseInt(binary.slice(i, i + 8), 2));
+    }
+
+    const decrypted = railFenceDecrypt(text, rails);
+    document.getElementById('output').innerText =
+        "Extracted Ciphertext:\n" + text + "\n\nDecrypted Message:\n" + decrypted;
+}
+</script>
+</body>
+</html>
